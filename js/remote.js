@@ -207,9 +207,23 @@
     }
   }
 
+  function reduceVideoLatency() {
+    try {
+      const pc = mediaCall && mediaCall.peerConnection;
+      if (!pc) return;
+      const receiver = pc.getReceivers().find(r => r.track && r.track.kind === 'video');
+      if (!receiver) return;
+      // Chrome: trade a little smoothing for lower glass-to-glass latency.
+      if ('jitterBufferTarget' in receiver) receiver.jitterBufferTarget = 0;
+      else if ('playoutDelayHint' in receiver) receiver.playoutDelayHint = 0;
+    } catch (e) {}
+  }
+
   function onIncomingCall(call) {
     if (mediaCall) { try { mediaCall.close(); } catch (e) {} }
     mediaCall = call;
+    setTimeout(reduceVideoLatency, 700);
+    setTimeout(reduceVideoLatency, 1800);
 
     // Register stream handling BEFORE answering: some mobile WebRTC stacks can
     // deliver the remote stream immediately after answer().
@@ -295,7 +309,7 @@
     if (linkState) linkState.textContent = '已连接 · 等待画面';
     setJoinStatus('已连接到主机', 'is-connected');
     clearTimeout(sendTimer);
-    sendTimer = setInterval(sendInput, 33);
+    sendTimer = setInterval(sendInput, 20);
     requestWakeLock();
     showToast('已连接主机，等待开始');
   }
@@ -475,6 +489,11 @@
       input.fire = true;
       fireBtn.classList.add('pressed');
       sendInput();
+      // Edge packet: delivered immediately so each tap is acted on even when
+      // the periodic state stream is coalesced under load.
+      if (connected && conn && conn.open) {
+        try { conn.send({ t: 'fire' }); } catch (e) {}
+      }
       if (navigator.vibrate) { try { navigator.vibrate(8); } catch (err) {} }
     });
     fireBtn.addEventListener('pointerup', releaseFire);

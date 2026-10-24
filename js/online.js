@@ -86,7 +86,7 @@
     if (codeEl) codeEl.textContent = code || '----';
     joinUrl = new URL('remote.html', window.location.href);
     joinUrl.searchParams.set('room', code);
-    joinUrl.searchParams.set('v', '20261024e');
+    joinUrl.searchParams.set('v', '20261024f');
     joinUrl = joinUrl.href;
     if (urlEl) urlEl.value = joinUrl;
     renderQR(joinUrl);
@@ -179,6 +179,8 @@
       lastRemoteAt = Date.now();
       if (msg.t === 'input') {
         api.setRemoteInput(msg);
+      } else if (msg.t === 'fire') {
+        if (typeof api.queueRemoteFire === 'function') api.queueRemoteFire();
       } else if (msg.t === 'action' && msg.action === 'pause') {
         if (started) api.togglePause();
       } else if (msg.t === 'video-request') {
@@ -212,8 +214,8 @@
     if (!gameCanvas) return null;
     if (!mirrorCanvas) {
       mirrorCanvas = document.createElement('canvas');
-      mirrorCanvas.width = 512;
-      mirrorCanvas.height = 480;
+      mirrorCanvas.width = 384;
+      mirrorCanvas.height = 360;
       mirrorCtx = mirrorCanvas.getContext('2d');
       if (mirrorCtx) mirrorCtx.imageSmoothingEnabled = false;
     }
@@ -225,6 +227,22 @@
     draw();
     mirrorTimer = setInterval(draw, 1000 / 24);
     return mirrorCanvas.captureStream(24);
+  }
+
+  function capVideoSender() {
+    setTimeout(() => {
+      try {
+        const pc = mediaCall && mediaCall.peerConnection;
+        if (!pc) return;
+        const sender = pc.getSenders().find(s => s.track && s.track.kind === 'video');
+        if (!sender || !sender.getParameters || !sender.setParameters) return;
+        const params = sender.getParameters();
+        if (!params.encodings || !params.encodings.length) params.encodings = [{}];
+        params.encodings[0].maxBitrate = 600000;
+        params.encodings[0].maxFramerate = 24;
+        sender.setParameters(params).catch(() => {});
+      } catch (e) {}
+    }, 600);
   }
 
   function startVideoCall() {
@@ -242,6 +260,7 @@
       const track = videoStream.getVideoTracks()[0];
       if (track && 'contentHint' in track) track.contentHint = 'motion';
       mediaCall = peer.call(conn.peer, videoStream);
+      if (mediaCall) capVideoSender();
       if (!mediaCall) {
         setStatus('已连接 · 画面同步未建立，请看主机屏幕', 'is-error');
         return;

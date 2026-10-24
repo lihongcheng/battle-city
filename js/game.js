@@ -419,6 +419,7 @@ let gamePaused = false;   // shell/game pause (web QoL addition)
 let gameReady = false;    // CHR sheet loaded
 let remoteP2Active = false;   // second phone controlling P2 over WebRTC
 let remoteP2State = { up: false, down: false, left: false, right: false, fire: false };
+let remoteP2FireQueued = false;   // one edge-triggered remote shot attempt
 let titleFrame;     // frame counter for title screen blink animation
 let titleTimer = 0; // ROM $0A counts to 8 before Demo Mode
 let titleCursor = 0; // menu cursor: 0=1P, 1=2P, 2=CONSTRUCTION
@@ -1289,13 +1290,24 @@ function handlePlayerFire() {
 
   // P2 fire: E / Q  (only in 2P mode)
   if (numPlayers === 2) {
-    const p2press = remoteP2Active ? !!remoteP2State.fire :
-      (demoMode ? (entities[1] && entities[1].demoFire) : !!(keys['KeyE'] || keys['KeyQ']));
-    if (p2press && !fireHeld[1]) {
-      const e = entities[1];
-      if (e.alive && e.spawnAnim === 0) tryFire(e);
+    if (remoteP2Active) {
+      // Remote fire is edge-triggered by a dedicated packet, not by the
+      // 30/50 Hz state stream. This guarantees every tap is seen even if two
+      // taps arrive between state updates, and avoids queued "late" shots.
+      if (remoteP2FireQueued) {
+        remoteP2FireQueued = false;
+        const e = entities[1];
+        if (e.alive && e.spawnAnim === 0) tryFire(e);
+      }
+      fireHeld[1] = !!remoteP2State.fire;
+    } else {
+      const p2press = demoMode ? (entities[1] && entities[1].demoFire) : !!(keys['KeyE'] || keys['KeyQ']);
+      if (p2press && !fireHeld[1]) {
+        const e = entities[1];
+        if (e.alive && e.spawnAnim === 0) tryFire(e);
+      }
+      fireHeld[1] = p2press;
     }
-    fireHeld[1] = p2press;
   }
 }
 
@@ -1816,6 +1828,7 @@ function setGamePaused(paused) {
     return;
   }
   gamePaused = paused;
+  if (paused) remoteP2FireQueued = false;
   document.body.classList.toggle('bc-paused', paused);
   if (audioCtx) {
     if (paused) {
@@ -3278,6 +3291,7 @@ function persistHiScore() {
 function startGame(players = 1, stage = 0) {
   initAudio();
   remoteP2State = { up: false, down: false, left: false, right: false, fire: false };
+  remoteP2FireQueued = false;
   if (gamePaused) setGamePaused(false);
   demoMode = false;
   customMap = null;
@@ -3338,7 +3352,10 @@ window.BCGame = Object.freeze({
   },
   setRemoteMode: (on) => {
     remoteP2Active = !!on;
-    if (!remoteP2Active) remoteP2State = { up: false, down: false, left: false, right: false, fire: false };
+    if (!remoteP2Active) {
+      remoteP2State = { up: false, down: false, left: false, right: false, fire: false };
+      remoteP2FireQueued = false;
+    }
     updateMobileLabels();
   },
   setRemoteInput: (state = {}) => {
@@ -3349,6 +3366,10 @@ window.BCGame = Object.freeze({
   },
   clearRemoteInput: () => {
     remoteP2State = { up: false, down: false, left: false, right: false, fire: false };
+    remoteP2FireQueued = false;
+  },
+  queueRemoteFire: () => {
+    if (remoteP2Active && !gamePaused && gamePhase === 'play') remoteP2FireQueued = true;
   },
   isRemoteMode: () => remoteP2Active,
   getState: () => ({
