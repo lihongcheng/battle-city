@@ -34,9 +34,17 @@ python3 -m http.server 8000
 
 手机 / 平板会显示虚拟方向键、开火键和暂停键。页面上的“起始关卡”可选择 1–35 关后直接开始。
 
-### 手机双人
+### 手机双人（同一台手机）
 
 手机端选择 **2 PLAYERS** 后，触控区会切换为左右两套独立控制器：P1 在左、P2 在右，各有方向键和开火键，支持双人多点触控同时操作。竖屏时上下排布，横屏时位于游戏画面两侧黑边内，建议横屏游玩。
+
+### 两台手机联机
+
+1. 在主机手机（或电脑）点击「手机联机」。
+2. 玩家 2 用另一台手机扫描二维码，或打开邀请链接 / 输入 6 位房间码。
+3. 连接成功后，主机点击「开始 2P 联机对战」。
+
+主机的屏幕显示游戏并操控 P1；另一台手机实时接收画面并操控 P2。声音由主机播放，副机画面默认静音。配对由 PeerJS 公共服务器协助，游戏数据/视频走 WebRTC 直连；建议两台设备连接同一 Wi-Fi，并使用稳定的网络环境。
 
 ## 画面
 
@@ -65,10 +73,12 @@ python3 -m http.server 8000
 - `js/levels.js`：从 Famicom ROM 解码的 35 张关卡数据
 - `js/sound.js`：NES APU 声音序列 + Web Audio 合成
 - `js/chr-data.js`：内嵌的 8 KB CHR 图集（Base64），保证 `file://` 直接打开也能读取像素
+- `js/online.js`：主机联机大厅、房间码、二维码、PeerJS 数据/视频连接
+- `remote.html` / `js/remote.js`：玩家 2 的副机控制器页面
 - `tiles/chr_all.png`：同一 CHR 图集的独立文件，便于查看与替换
 
 ## 致谢与版权
 
-游戏引擎和反汇编数据参考了 MIT 协议的开源项目 [vgrichina/battlecity](https://github.com/vgrichina/battlecity)（对 1985 年 Famicom 原版的反汇编与网页重实现）。页面外壳、触屏控制、暂停、选关和本地化在本项目中完成。
+游戏引擎和反汇编数据参考了 MIT 协议的开源项目 [vgrichina/battlecity](https://github.com/vgrichina/battlecity)（对 1985 年 Famicom 原版的反汇编与网页重实现）。页面外壳、触屏控制、暂停、选关、双人联机和本地化在本项目中完成。手机联机使用 [PeerJS](https://peerjs.com/)（MIT）进行配对，二维码由 [qrcode-generator](https://github.com/kazuhikoarase/qrcode-generator)（MIT）生成。
 
 《BATTLE CITY》原作 © 1980, 1985 NAMCO LTD. 本项目为非商业同人复刻，仅用于学习与怀旧，与原权利方无关联。详见 [NOTICE.md](NOTICE.md)。

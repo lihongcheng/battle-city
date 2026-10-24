@@ -417,6 +417,8 @@ let frameCount;     // ROM $0A/$0B FrameHi/FrameLo
 let gamePhase;      // 'title' | 'start' | 'play' | 'clear' | 'gameover_tally' | 'gameover' | 'victory' | 'select' | 'curtain' | 'edit'
 let gamePaused = false;   // shell/game pause (web QoL addition)
 let gameReady = false;    // CHR sheet loaded
+let remoteP2Active = false;   // second phone controlling P2 over WebRTC
+let remoteP2State = { up: false, down: false, left: false, right: false, fire: false };
 let titleFrame;     // frame counter for title screen blink animation
 let titleTimer = 0; // ROM $0A counts to 8 before Demo Mode
 let titleCursor = 0; // menu cursor: 0=1P, 1=2P, 2=CONSTRUCTION
@@ -966,7 +968,7 @@ function updateMobileLabels() {
   if (!btnFire) return;
 
   // Layout switch for local two-player touch: P1 on the left, P2 on the right.
-  const dualTouch = numPlayers === 2 &&
+  const dualTouch = numPlayers === 2 && !remoteP2Active &&
     gamePhase !== 'title' && gamePhase !== 'select' && gamePhase !== 'edit';
   document.body.classList.toggle('bc-two-player', dualTouch);
   if (btnFire2) btnFire2.textContent = '开火';
@@ -1085,6 +1087,13 @@ function p1Dir() {
   return -1;
 }
 function p2Dir() {
+  if (remoteP2Active) {
+    if (remoteP2State.up) return 0;
+    if (remoteP2State.left) return 1;
+    if (remoteP2State.down) return 2;
+    if (remoteP2State.right) return 3;
+    return -1;
+  }
   if (demoMode && entities[1]) return entities[1].dir;  // AI sets e.dir via tickDemoAI
   if (keys['KeyW']) return 0;
   if (keys['KeyA']) return 1;
@@ -1280,7 +1289,8 @@ function handlePlayerFire() {
 
   // P2 fire: E / Q  (only in 2P mode)
   if (numPlayers === 2) {
-    const p2press = demoMode ? (entities[1] && entities[1].demoFire) : !!(keys['KeyE'] || keys['KeyQ']);
+    const p2press = remoteP2Active ? !!remoteP2State.fire :
+      (demoMode ? (entities[1] && entities[1].demoFire) : !!(keys['KeyE'] || keys['KeyQ']));
     if (p2press && !fireHeld[1]) {
       const e = entities[1];
       if (e.alive && e.spawnAnim === 0) tryFire(e);
@@ -3267,6 +3277,7 @@ function persistHiScore() {
 
 function startGame(players = 1, stage = 0) {
   initAudio();
+  remoteP2State = { up: false, down: false, left: false, right: false, fire: false };
   if (gamePaused) setGamePaused(false);
   demoMode = false;
   customMap = null;
@@ -3325,6 +3336,21 @@ window.BCGame = Object.freeze({
     try { localStorage.removeItem('battlecity.hiscore'); } catch (e) {}
     render();
   },
+  setRemoteMode: (on) => {
+    remoteP2Active = !!on;
+    if (!remoteP2Active) remoteP2State = { up: false, down: false, left: false, right: false, fire: false };
+    updateMobileLabels();
+  },
+  setRemoteInput: (state = {}) => {
+    remoteP2State = {
+      up: !!state.up, down: !!state.down, left: !!state.left,
+      right: !!state.right, fire: !!state.fire
+    };
+  },
+  clearRemoteInput: () => {
+    remoteP2State = { up: false, down: false, left: false, right: false, fire: false };
+  },
+  isRemoteMode: () => remoteP2Active,
   getState: () => ({
     ready: gameReady,
     phase: gamePhase,
@@ -3337,7 +3363,8 @@ window.BCGame = Object.freeze({
     p2Lives: typeof p2Lives === 'number' ? p2Lives : 2,
     hiScore: hiScore || 20000,
     muted: !soundEnabled,
-    demo: !!demoMode
+    demo: !!demoMode,
+    online: remoteP2Active
   })
 });
 

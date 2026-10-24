@@ -20,6 +20,13 @@
 - 本项目与 Namco / Bandai Namco Entertainment 没有任何关联，也未获得其授权或背书。
 - 若权利方认为本项目不妥，请联系删除。
 
+## 第三方开源组件
+
+- **PeerJS** — WebRTC 配对与数据通道客户端，Copyright (c) 2015 Michelle Bu and Eric Zhang，MIT License。本项目通过 PeerJS 公共信令服务器（0.peerjs.com）完成房间配对；游戏视频/输入数据为设备间 P2P 传输。
+- **qrcode-generator** — 二维码生成器，Copyright (c) 2009 Kazuhiko Arase，MIT License。“QR Code”是 DENSO WAVE INCORPORATED 的注册商标。
+
+许可证原文见 `js/vendor/` 目录。
+
 ## 字体与外部资源
 
 页面不加载任何第三方字体、脚本或图片。界面中文使用系统字体，英文使用系统等宽字体；游戏内像素字体和精灵均来自内嵌的 CHR 图集。

@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#080806">
+  <meta name="color-scheme" content="dark">
+  <meta name="description" content="《坦克大战》手机双人联机 · 玩家 2 控制器。同步主机画面并控制 P2 坦克。">
+  <title>P2 控制器 · 坦克大战联机</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23080806'/%3E%3Cg fill='%23b9e476'%3E%3Crect x='17' y='9' width='12' height='3'/%3E%3Crect x='12' y='7' width='8' height='9'/%3E%3Crect x='8' y='11' width='15' height='8'/%3E%3Crect x='4' y='18' width='22' height='7'/%3E%3C/g%3E%3Cg fill='%23080806'%3E%3Crect x='7' y='20' width='3' height='3'/%3E%3Crect x='13' y='20' width='3' height='3'/%3E%3Crect x='19' y='20' width='3' height='3'/%3E%3C/g%3E%3C/svg%3E">
+  <link rel="stylesheet" href="remote.css?v=20261024c">
+</head>
+<body>
+  <div class="remote-glow" aria-hidden="true"></div>
+
+  <header class="remote-header">
+    <div class="remote-brand">
+      <span class="remote-mark" aria-hidden="true">
+        <svg viewBox="0 0 32 32" shape-rendering="crispEdges">
+          <g fill="currentColor">
+            <rect x="17" y="8" width="12" height="3"/><rect x="12" y="6" width="8" height="9"/>
+            <rect x="8" y="10" width="15" height="8"/><rect x="4" y="17" width="22" height="8"/>
+          </g>
+          <g fill="#080806">
+            <rect x="7" y="19" width="3" height="4"/><rect x="13" y="19" width="3" height="4"/>
+            <rect x="19" y="19" width="3" height="4"/>
+          </g>
+        </svg>
+      </span>
+      <div>
+        <div class="remote-kicker">BATTLE CITY · LINK PLAY</div>
+        <h1>P2 <span>控制器</span></h1>
+      </div>
+    </div>
+    <div class="remote-head-right">
+      <span id="room-pill" class="room-pill" hidden>ROOM <b id="room-pill-code">------</b></span>
+      <button id="remote-disconnect" class="head-btn" type="button" hidden>断开</button>
+    </div>
+  </header>
+
+  <main id="join-panel" class="join-panel">
+    <section class="join-card">
+      <div class="join-kicker">SECOND PHONE</div>
+      <h2>加入战斗</h2>
+      <p>先在主机手机打开「手机联机」，然后用另一台手机扫描主机上的二维码，或输入 6 位房间码。</p>
+      <form id="join-form" autocomplete="off">
+        <input id="room-input" type="text" maxlength="6" inputmode="text"
+               autocapitalize="characters" autocomplete="off" spellcheck="false"
+               placeholder="房间码" aria-label="6 位房间码">
+        <button id="join-btn" class="join-btn" type="submit">加入房间</button>
+      </form>
+      <div id="join-status" class="join-status" aria-live="polite">
+        <span class="join-dot"></span><span id="join-status-text">等待输入房间码</span>
+      </div>
+      <div class="join-note">
+        <span><b>P2</b> 方向键移动</span>
+        <span><b>开火</b> 发射炮弹</span>
+        <span>画面由主机实时同步</span>
+      </div>
+    </section>
+  </main>
+
+  <main id="controller-panel" class="controller-panel" hidden>
+    <button id="remote-disconnect-2" class="remote-exit" type="button" aria-label="断开联机" hidden>×</button>
+    <div class="mirror-wrap">
+      <div class="mirror-frame">
+        <video id="game-video" autoplay playsinline muted></video>
+        <div id="video-placeholder" class="video-placeholder">
+          <span class="video-ring" aria-hidden="true"></span>
+          正在同步主机画面…
+        </div>
+        <div class="mirror-label"><span class="mirror-led"></span>LIVE · P2</div>
+      </div>
+    </div>
+
+    <div class="deck-gap" aria-hidden="true">
+      <div class="deck-watermark">P2</div>
+      <div class="deck-caption">SECOND PLAYER · 守住鹰徽</div>
+      <div id="deck-room" class="deck-room">ROOM ------</div>
+    </div>
+
+    <div class="pad-area">
+      <div id="dpad" class="dpad" aria-label="P2 方向键">
+        <span class="dpad-arr up" aria-hidden="true">▲</span>
+        <span class="dpad-arr dn" aria-hidden="true">▼</span>
+        <span class="dpad-arr lt" aria-hidden="true">◀</span>
+        <span class="dpad-arr rt" aria-hidden="true">▶</span>
+        <span class="dpad-hub" aria-hidden="true"></span>
+      </div>
+      <div class="pad-mid">
+        <div class="p2-tag">P2</div>
+        <button id="btn-pause" class="remote-pause" type="button">暂停</button>
+        <div id="link-state" class="link-state">已连接</div>
+      </div>
+      <button id="btn-fire" class="remote-fire" type="button">开火</button>
+    </div>
+  </main>
+
+  <div id="remote-toast" class="remote-toast" role="status" aria-live="polite"></div>
+
+  <script src="js/vendor/peerjs.min.js?v=20261024c"></script>
+  <script src="js/remote.js?v=20261024c"></script>
+</body>
+</html>

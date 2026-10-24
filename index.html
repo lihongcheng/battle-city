@@ -8,7 +8,7 @@
   <meta name="color-scheme" content="dark">
   <title>坦克大战 · BATTLE CITY — 像素级复刻</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23080806'/%3E%3Cg fill='%23f3c51c'%3E%3Crect x='17' y='9' width='12' height='3'/%3E%3Crect x='12' y='7' width='8' height='9'/%3E%3Crect x='8' y='11' width='15' height='8'/%3E%3Crect x='4' y='18' width='22' height='7'/%3E%3C/g%3E%3Cg fill='%23080806'%3E%3Crect x='7' y='20' width='3' height='3'/%3E%3Crect x='13' y='20' width='3' height='3'/%3E%3Crect x='19' y='20' width='3' height='3'/%3E%3C/g%3E%3C/svg%3E">
-  <link rel="stylesheet" href="styles.css?v=20261024b">
+  <link rel="stylesheet" href="styles.css?v=20261024c">
 </head>
 <body>
   <div class="ambient" aria-hidden="true"></div>
@@ -79,6 +79,7 @@
             <span class="meta-model">FC-1985</span>
             <span class="meta-divider"></span>
             <span id="stage-badge">STAGE 01</span>
+            <span id="online-badge" class="online-badge" hidden>P2 LINK</span>
           </div>
         </div>
 
@@ -183,6 +184,11 @@
           <span class="btn-copy"><b>双人对战</b><small>START TWO PLAYERS</small></span>
           <span class="btn-arrow" aria-hidden="true">→</span>
         </button>
+        <button class="btn btn-ghost btn-online" id="open-online" type="button">
+          <span class="btn-key">⇄</span>
+          <span class="btn-copy"><b>手机联机</b><small>TWO PHONES · ONE BATTLE</small></span>
+          <span class="btn-arrow" aria-hidden="true">⌁</span>
+        </button>
 
         <div class="sub-actions">
           <button id="open-title" type="button">经典标题</button>
@@ -219,15 +225,56 @@
 
       <footer class="credits">
         <p>原作 © 1980, 1985 NAMCO LTD. 本作是非商业同人复刻，仅供学习与怀旧。</p>
-        <p>引擎与反汇编数据参考 MIT 协议开源项目 <a href="https://github.com/vgrichina/battlecity" target="_blank" rel="noopener noreferrer">vgrichina/battlecity</a>。</p>
+        <p>引擎与反汇编数据参考 MIT 协议开源项目 <a href="https://github.com/vgrichina/battlecity" target="_blank" rel="noopener noreferrer">vgrichina/battlecity</a>。手机联机由 <a href="https://peerjs.com/" target="_blank" rel="noopener noreferrer">PeerJS</a> 协助配对。</p>
       </footer>
     </aside>
   </main>
 
-  <script src="js/levels.js?v=20261024b"></script>
-  <script src="js/sound.js?v=20261024b"></script>
-  <script src="js/chr-data.js?v=20261024b"></script>
-  <script src="js/game.js?v=20261024b"></script>
-  <script src="js/shell.js?v=20261024b"></script>
+  <div id="online-modal" class="online-modal" aria-hidden="true">
+    <div class="online-card" role="dialog" aria-modal="true" aria-labelledby="online-title">
+      <button id="online-close" class="online-close" type="button" aria-label="关闭联机窗口">×</button>
+      <div class="online-kicker">TWO PHONES · LINK PLAY</div>
+      <h2 id="online-title">手机双人联机</h2>
+      <p class="online-lede">主机显示游戏；玩家 2 扫描二维码，用另一台手机同步画面并控制 P2。</p>
+
+      <div class="online-main">
+        <div id="online-qr" class="online-qr" aria-label="房间邀请二维码"></div>
+        <div class="online-side">
+          <div class="online-label">房间码</div>
+          <div id="online-code" class="online-code" aria-live="polite">----</div>
+          <div class="online-link-row">
+            <input id="online-url" type="text" readonly aria-label="邀请链接" placeholder="正在创建房间…">
+            <button id="online-copy" type="button">复制</button>
+            <button id="online-share" type="button">分享</button>
+          </div>
+          <div id="online-status" class="online-status" aria-live="polite">
+            <span class="online-dot"></span><span id="online-status-text">正在创建房间…</span>
+          </div>
+          <button id="online-start" class="online-start" type="button" disabled>开始 2P 联机对战</button>
+        </div>
+      </div>
+
+      <ol class="online-steps">
+        <li>玩家 2 用相机扫描二维码，或打开链接后输入房间码。</li>
+        <li>连接成功后，由本机点击「开始 2P 联机对战」。</li>
+        <li>P1 使用本机键盘/触控，P2 使用另一台手机的方向键与开火键。</li>
+      </ol>
+      <div class="online-foot">
+        <button id="online-disconnect" class="online-text-btn" type="button">断开联机</button>
+        <span>P2P 直连 · 由 PeerJS 协助配对</span>
+      </div>
+    </div>
+  </div>
+
+  <div id="online-toast" class="online-toast" role="status" aria-live="polite"></div>
+
+  <script src="js/vendor/peerjs.min.js?v=20261024c"></script>
+  <script src="js/vendor/qrcode.js?v=20261024c"></script>
+  <script src="js/levels.js?v=20261024c"></script>
+  <script src="js/sound.js?v=20261024c"></script>
+  <script src="js/chr-data.js?v=20261024c"></script>
+  <script src="js/game.js?v=20261024c"></script>
+  <script src="js/shell.js?v=20261024c"></script>
+  <script src="js/online.js?v=20261024c"></script>
 </body>
 </html>
