@@ -25,6 +25,7 @@
   const statusText  = $('#online-status-text');
   const startBtn    = $('#online-start');
   const disconnect  = $('#online-disconnect');
+  const resync      = $('#online-resync');
   const badge       = $('#online-badge');
   const toastEl     = $('#online-toast');
 
@@ -34,6 +35,9 @@
   let conn = null;
   let mediaCall = null;
   let videoStream = null;
+  let mirrorCanvas = null;
+  let mirrorCtx = null;
+  let mirrorTimer = 0;
   let roomCode = '';
   let joinUrl = '';
   let connected = false;
@@ -76,7 +80,7 @@
     if (codeEl) codeEl.textContent = code || '----';
     joinUrl = new URL('remote.html', window.location.href);
     joinUrl.searchParams.set('room', code);
-    joinUrl.searchParams.set('v', '20261024c');
+    joinUrl.searchParams.set('v', '20261024d');
     joinUrl = joinUrl.href;
     if (urlEl) urlEl.value = joinUrl;
     renderQR(joinUrl);
@@ -122,6 +126,7 @@
   }
 
   function cleanupMedia() {
+    if (mirrorTimer) { clearInterval(mirrorTimer); mirrorTimer = 0; }
     if (mediaCall) {
       try { mediaCall.close(); } catch (e) {}
       mediaCall = null;
@@ -157,7 +162,9 @@
       setStatus('玩家 2 已连接 · 正在同步画面…', 'is-connected');
       setStartEnabled(true);
       setBadge(true);
-      startVideoCall();
+      if (resync) resync.hidden = false;
+      if (started) startVideoCall();
+      else setStatus('玩家 2 已连接 · 等待开始', 'is-connected');
       startStateUpdates();
       showToast('玩家 2 已连接');
     });
@@ -175,6 +182,7 @@
         connected = false;
         setStartEnabled(false);
         setBadge(false);
+        if (resync) resync.hidden = true;
         setStatus('玩家 2 已断开 · 可让其重新加入', 'is-error');
         safeClearInput();
         cleanupMedia();
@@ -188,18 +196,40 @@
     });
   }
 
+  function getMirrorStream() {
+    const gameCanvas = document.getElementById('game');
+    if (!gameCanvas) return null;
+    if (!mirrorCanvas) {
+      mirrorCanvas = document.createElement('canvas');
+      mirrorCanvas.width = 512;
+      mirrorCanvas.height = 480;
+      mirrorCtx = mirrorCanvas.getContext('2d');
+      if (mirrorCtx) mirrorCtx.imageSmoothingEnabled = false;
+    }
+    if (!mirrorCanvas.captureStream) return null;
+    if (mirrorTimer) { clearInterval(mirrorTimer); mirrorTimer = 0; }
+    const draw = () => {
+      try { mirrorCtx.drawImage(gameCanvas, 0, 0, mirrorCanvas.width, mirrorCanvas.height); } catch (e) {}
+    };
+    draw();
+    mirrorTimer = setInterval(draw, 1000 / 24);
+    return mirrorCanvas.captureStream(24);
+  }
+
   function startVideoCall() {
     cleanupMedia();
     if (!peer || !conn || !conn.open) return;
-    const canvas = document.getElementById('game');
-    if (!canvas || typeof canvas.captureStream !== 'function') {
-      setStatus('已连接 · 当前浏览器不支持画面同步，请看主机屏幕', 'is-connected');
-      return;
-    }
+    if (typeof HTMLCanvasElement === 'undefined') return;
     try {
-      videoStream = canvas.captureStream(24);
+      // Capture a dedicated 512×480 mirror instead of the 768×720 game canvas:
+      // lighter to encode on phones and still pin-sharp for this pixel game.
+      videoStream = getMirrorStream();
+      if (!videoStream) {
+        setStatus('已连接 · 当前浏览器不支持画面同步，请看主机屏幕', 'is-error');
+        return;
+      }
       const track = videoStream.getVideoTracks()[0];
-      if (track && 'contentHint' in track) track.contentHint = 'detail';
+      if (track && 'contentHint' in track) track.contentHint = 'motion';
       mediaCall = peer.call(conn.peer, videoStream);
       if (!mediaCall) {
         setStatus('已连接 · 画面同步未建立，请看主机屏幕', 'is-error');
@@ -236,6 +266,7 @@
     setRoomCode(code);
     setStatus('正在建立房间…', 'is-waiting');
     setStartEnabled(false);
+    if (resync) resync.hidden = true;
 
     try {
       peer = new Peer(PREFIX + code.toLowerCase(), { debug: 1 });
@@ -294,6 +325,7 @@
     safeClearInput();
     setStartEnabled(false);
     setBadge(false);
+    if (resync) resync.hidden = true;
     setRoomCode('');
     setStatus('联机已断开', '');
     if (showMessage) showToast('已断开手机联机');
@@ -323,6 +355,7 @@
     const stageIndex = Number.isFinite(stageNumber) ? Math.max(0, Math.min(34, stageNumber - 1)) : 0;
     api.setRemoteMode(true);
     api.clearRemoteInput();
+    startVideoCall();
     api.start(2, stageIndex);
     started = true;
     setBadge(true);
@@ -378,6 +411,12 @@
   });
   copyBtn.addEventListener('click', copyLink);
   shareBtn.addEventListener('click', shareLink);
+  if (resync) resync.addEventListener('click', () => {
+    if (!connected) return;
+    setStatus('正在重新同步画面…', 'is-waiting');
+    startVideoCall();
+    showToast('已请求重新同步画面');
+  });
 
   // If P2 goes quiet while the link is live, release their controls so a
   // dropped Wi-Fi packet cannot leave a tank driving forever.

@@ -1559,6 +1559,7 @@ body.online-open { overflow: hidden; }
   font-size: 7px;
   letter-spacing: .04em;
 }
+.online-foot > span:first-child { display: flex; gap: 13px; flex-wrap: wrap; }
 .online-text-btn {
   padding: 0;
   color: #8b8068;

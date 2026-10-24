@@ -23,6 +23,8 @@
   const disconnect2   = $('#remote-disconnect-2');
   const video         = $('#game-video');
   const placeholder   = $('#video-placeholder');
+  const placeholderText = $('#video-placeholder-text');
+  const videoPlay     = $('#video-play');
   const dpad          = $('#dpad');
   const fireBtn       = $('#btn-fire');
   const pauseBtn      = $('#btn-pause');
@@ -98,7 +100,11 @@
       try { video.pause(); } catch (e) {}
       video.srcObject = null;
     }
-    if (placeholder) placeholder.hidden = false;
+    if (placeholder) {
+      placeholder.hidden = false;
+      if (placeholderText) placeholderText.textContent = '已连接，等待主机开始…';
+    }
+    if (videoPlay) videoPlay.hidden = true;
   }
 
   function dismissDisconnected(message) {
@@ -169,36 +175,93 @@
     return dummyStream;
   }
 
+  function markVideoPlaying() {
+    if (placeholder) placeholder.hidden = true;
+    if (videoPlay) videoPlay.hidden = true;
+    if (linkState) linkState.textContent = '画面已同步';
+  }
+
+  function showPlayPrompt() {
+    if (placeholder) placeholder.hidden = true;
+    if (videoPlay) videoPlay.hidden = false;
+    if (linkState) linkState.textContent = '点击播放画面';
+  }
+
+  function attemptVideoPlay() {
+    if (!video || !video.srcObject) return;
+    video.muted = true;
+    try {
+      const p = video.play();
+      if (p && typeof p.then === 'function') {
+        p.then(markVideoPlaying).catch(showPlayPrompt);
+      } else if (!video.paused) {
+        markVideoPlaying();
+      } else {
+        showPlayPrompt();
+      }
+    } catch (e) {
+      showPlayPrompt();
+    }
+  }
+
   function onIncomingCall(call) {
     if (mediaCall) { try { mediaCall.close(); } catch (e) {} }
     mediaCall = call;
-    try {
-      // Answer with a tiny dummy video stream so the host's canvas feed is
-      // accepted even on PeerJS versions that require an answer stream.
-      call.answer(makeDummyStream() || undefined);
-    } catch (e) {
-      try { call.answer(); } catch (err) {}
-    }
+
+    // Register stream handling BEFORE answering: some mobile WebRTC stacks can
+    // deliver the remote stream immediately after answer().
     call.on('stream', (stream) => {
       if (!video) return;
       video.srcObject = stream;
-      video.play().then(() => {
-        if (placeholder) placeholder.hidden = true;
-        if (linkState) linkState.textContent = '画面已同步';
-      }).catch(() => {
-        if (placeholder) placeholder.hidden = true;
-        if (linkState) linkState.textContent = '画面已同步';
-      });
+      video.muted = true;
+      if (placeholder) placeholder.hidden = true;
+      attemptVideoPlay();
+      // Some browsers only allow MediaStream playback after a tap; retry once
+      // the next frame has arrived as well.
+      setTimeout(attemptVideoPlay, 500);
     });
     call.on('close', () => {
-      if (placeholder) placeholder.hidden = false;
+      if (placeholder) {
+        placeholder.hidden = false;
+        if (placeholderText) placeholderText.textContent = '画面同步已停止';
+      }
+      if (videoPlay) videoPlay.hidden = true;
       if (linkState) linkState.textContent = '画面中断';
     });
     call.on('error', () => {
-      if (placeholder) placeholder.hidden = false;
+      if (placeholder) {
+        placeholder.hidden = false;
+        if (placeholderText) placeholderText.textContent = '画面同步失败';
+      }
+      if (videoPlay) videoPlay.hidden = true;
       if (linkState) linkState.textContent = '画面同步失败';
     });
+
+    // Prefer a receive-only answer. If this PeerJS build insists on an answer
+    // stream, fall back to a tiny muted canvas stream.
+    try {
+      call.answer();
+    } catch (e) {
+      try { call.answer(makeDummyStream() || undefined); } catch (err) {}
+    }
   }
+
+  video && video.addEventListener('playing', markVideoPlaying);
+  video && video.addEventListener('loadeddata', () => {
+    if (!video.paused) markVideoPlaying();
+  });
+  video && video.addEventListener('pause', () => {
+    if (connected && video.srcObject) showPlayPrompt();
+  });
+  video && video.addEventListener('click', attemptVideoPlay);
+  videoPlay && videoPlay.addEventListener('click', (e) => {
+    e.stopPropagation();
+    attemptVideoPlay();
+    setTimeout(() => {
+      if (video && !video.paused) markVideoPlaying();
+      else showToast('无法自动播放，请刷新页面后重试', true);
+    }, 450);
+  });
 
   function goOnline() {
     connected = true;
@@ -211,6 +274,8 @@
     if (deckRoom) deckRoom.textContent = `ROOM ${room}`;
     if (disconnectBtn) disconnectBtn.hidden = false;
     if (disconnect2) disconnect2.hidden = false;
+    if (placeholder) { placeholder.hidden = false; if (placeholderText) placeholderText.textContent = '已连接，等待主机开始…'; }
+    if (videoPlay) videoPlay.hidden = true;
     if (linkState) linkState.textContent = '已连接 · 等待画面';
     setJoinStatus('已连接到主机', 'is-connected');
     clearTimeout(sendTimer);
@@ -252,7 +317,12 @@
         if (!msg || typeof msg !== 'object') return;
         if (msg.t === 'state') {
           if (msg.paused) linkState && (linkState.textContent = '主机已暂停');
-          else if (msg.phase === 'play') linkState && (linkState.textContent = '对战中');
+          else if (msg.phase === 'play') {
+            if (!video || !video.srcObject) {
+              if (placeholderText) placeholderText.textContent = '主机已开始，正在同步画面…';
+              if (linkState) linkState.textContent = '正在同步画面';
+            }
+          }
           else if (msg.phase === 'title') linkState && (linkState.textContent = '等待主机开始');
         }
       });
