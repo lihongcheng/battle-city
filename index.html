@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#080806">
+  <meta name="description" content="经典坦克大战 · 1985 Famicom《Battle City》像素级网页复刻。35 个关卡、双人同屏、经典音效。">
+  <meta name="color-scheme" content="dark">
+  <title>坦克大战 · BATTLE CITY — 像素级复刻</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23080806'/%3E%3Cg fill='%23f3c51c'%3E%3Crect x='17' y='9' width='12' height='3'/%3E%3Crect x='12' y='7' width='8' height='9'/%3E%3Crect x='8' y='11' width='15' height='8'/%3E%3Crect x='4' y='18' width='22' height='7'/%3E%3C/g%3E%3Cg fill='%23080806'%3E%3Crect x='7' y='20' width='3' height='3'/%3E%3Crect x='13' y='20' width='3' height='3'/%3E%3Crect x='19' y='20' width='3' height='3'/%3E%3C/g%3E%3C/svg%3E">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="ambient" aria-hidden="true"></div>
+
+  <header class="masthead">
+    <div class="brand">
+      <div class="tank-mark" aria-hidden="true">
+        <svg viewBox="0 0 32 32" shape-rendering="crispEdges">
+          <g fill="currentColor">
+            <rect x="17" y="8" width="12" height="3"/>
+            <rect x="12" y="6" width="8" height="9"/>
+            <rect x="8" y="10" width="15" height="8"/>
+            <rect x="4" y="17" width="22" height="8"/>
+          </g>
+          <g fill="#080806">
+            <rect x="7" y="19" width="3" height="4"/>
+            <rect x="13" y="19" width="3" height="4"/>
+            <rect x="19" y="19" width="3" height="4"/>
+            <rect x="21" y="12" width="3" height="2"/>
+          </g>
+        </svg>
+      </div>
+      <div class="brand-text">
+        <div class="eyebrow">
+          <span>NAMCO</span><i></i><span>FAMICOM</span><i></i><span>1985</span>
+          <span class="badge">像素级复刻</span>
+        </div>
+        <h1>
+          <span class="latin">BATTLE CITY</span>
+          <span class="cn">坦克大战</span>
+        </h1>
+      </div>
+    </div>
+
+    <div class="top-actions" role="group" aria-label="显示与声音设置">
+      <button class="chip" id="ui-sound" type="button" aria-pressed="false" title="声音开关 (M)">
+        <svg class="ico ico-sound" viewBox="0 0 20 16" aria-hidden="true" shape-rendering="crispEdges">
+          <path d="M1 5h4l4-4v14l-4-4H1zM12 4h2v2h2v4h-2v2h-2v-2h2V6h-2z" fill="currentColor"/>
+        </svg>
+        <svg class="ico ico-muted" viewBox="0 0 20 16" aria-hidden="true" shape-rendering="crispEdges">
+          <path d="M1 5h4l4-4v14l-4-4H1z" fill="currentColor"/>
+          <path d="M12 4h2v2h2v2h2v2h-2V8h-2v2h-2V8h2V6h-2z" fill="currentColor"/>
+        </svg>
+        <span id="sound-label">声音</span>
+      </button>
+      <button class="chip" id="ui-crt" type="button" aria-pressed="false" title="CRT 扫描线">
+        <span class="crt-glyph" aria-hidden="true"></span>
+        <span>CRT</span>
+      </button>
+      <button class="chip" id="ui-fullscreen" type="button" title="全屏 (F)">
+        <svg class="ico" viewBox="0 0 16 16" aria-hidden="true" shape-rendering="crispEdges">
+          <path d="M1 1h5v2H3v3H1zM10 1h5v5h-2V3h-3zM1 10h2v3h3v2H1zM13 10h2v5h-5v-2h3z" fill="currentColor"/>
+        </svg>
+        <span>全屏</span>
+      </button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="cabinet" aria-label="坦克大战游戏机">
+      <div class="cabinet-shell">
+        <div class="cabinet-meta" aria-hidden="true">
+          <div class="meta-group">
+            <span class="led" id="status-led"></span>
+            <span id="status-text">STANDBY</span>
+          </div>
+          <div class="meta-group meta-right">
+            <span class="meta-model">FC-1985</span>
+            <span class="meta-divider"></span>
+            <span id="stage-badge">STAGE 01</span>
+          </div>
+        </div>
+
+        <div class="bezel">
+          <div id="screen" class="screen">
+            <canvas id="game" width="768" height="720" aria-label="BATTLE CITY 游戏画面"></canvas>
+            <div class="screen-vignette" aria-hidden="true"></div>
+            <div id="crt-scan" class="scanlines" aria-hidden="true"></div>
+
+            <div id="loading" class="loading">
+              <div class="load-kicker">NAMCO · 1985</div>
+              <div class="load-logo">BATTLE<span>CITY</span></div>
+              <div class="load-bar"><i></i></div>
+              <p>LOADING CHR · 正在载入像素数据</p>
+            </div>
+
+            <div id="pause-overlay" class="pause-overlay" aria-hidden="true">
+              <div class="pause-inner">
+                <div class="pause-kicker">SYSTEM PAUSED</div>
+                <div class="pause-title">已暂停</div>
+                <div class="pause-rule"></div>
+                <p>战斗暂时停止</p>
+                <button id="resume-button" class="pause-btn" type="button">继续游戏 <kbd>P</kbd></button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="deck">
+          <div id="controls-hint" class="hint-line" aria-live="polite"></div>
+          <div class="deck-actions">
+            <button id="ui-pause" class="deck-btn" type="button" disabled>暂停 <kbd>P</kbd></button>
+          </div>
+        </div>
+
+        <div id="vpad" class="vpad" aria-label="触屏控制器">
+          <div id="dpad" class="dpad" aria-label="方向键">
+            <span class="dpad-arr up" aria-hidden="true">▲</span>
+            <span class="dpad-arr dn" aria-hidden="true">▼</span>
+            <span class="dpad-arr lt" aria-hidden="true">◀</span>
+            <span class="dpad-arr rt" aria-hidden="true">▶</span>
+            <span class="dpad-hub" aria-hidden="true"></span>
+          </div>
+          <div class="vpad-mid">
+            <button id="btn-start" class="vbtn vbtn-start" type="button">START</button>
+            <button id="btn-b" class="vbtn vbtn-b" type="button">B</button>
+          </div>
+          <div class="vpad-right">
+            <button id="btn-fire" class="vbtn vbtn-fire" type="button">FIRE</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <aside class="sidebar">
+      <section class="panel intro">
+        <span class="corner-label">MISSION 01</span>
+        <h2>守住鹰徽，<br>击退敌军。</h2>
+        <p>以 1985 年 Famicom 原版为基准，重建 256×240 像素画面、九组调色板、35 张经典地图与 APU 音效。倒下的砖墙、每一辆战车，都按原版像素绘制。</p>
+        <div class="stats">
+          <div><span class="stat-num">35</span><span class="stat-lbl">STAGES</span></div>
+          <div><span class="stat-num">02</span><span class="stat-lbl">PLAYERS</span></div>
+          <div><span class="stat-num">60</span><span class="stat-lbl">FPS</span></div>
+        </div>
+      </section>
+
+      <section class="panel launch">
+        <div class="panel-head">
+          <h3>开始战斗</h3>
+          <span class="hiscore">HI-SCORE <b id="hi-score">20000</b></span>
+        </div>
+
+        <div class="stage-row">
+          <span class="field-label">起始关卡</span>
+          <div class="stepper">
+            <button id="stage-prev" type="button" aria-label="上一关">−</button>
+            <output id="stage-select" aria-live="polite">01</output>
+            <button id="stage-next" type="button" aria-label="下一关">+</button>
+          </div>
+        </div>
+        <div class="stage-track" aria-hidden="true"><i id="stage-progress"></i></div>
+
+        <button class="btn btn-primary" id="start-1p" type="button">
+          <span class="btn-key">1P</span>
+          <span class="btn-copy"><b>单人战役</b><small>START SINGLE PLAYER</small></span>
+          <span class="btn-arrow" aria-hidden="true">→</span>
+        </button>
+        <button class="btn btn-ghost" id="start-2p" type="button">
+          <span class="btn-key">2P</span>
+          <span class="btn-copy"><b>双人对战</b><small>START TWO PLAYERS</small></span>
+          <span class="btn-arrow" aria-hidden="true">→</span>
+        </button>
+
+        <div class="sub-actions">
+          <button id="open-title" type="button">经典标题</button>
+          <span aria-hidden="true">/</span>
+          <button id="open-build" type="button">建造模式</button>
+        </div>
+      </section>
+
+      <section class="panel controls">
+        <h3>操作</h3>
+        <div class="control-row">
+          <span class="who p1">P1</span>
+          <div class="keys"><kbd>↑</kbd><kbd>←</kbd><kbd>↓</kbd><kbd>→</kbd></div>
+          <span class="verb">移动</span>
+          <div class="keys single"><kbd>SPACE</kbd><kbd>J</kbd></div>
+          <span class="verb">开火</span>
+        </div>
+        <div class="control-row">
+          <span class="who p2">P2</span>
+          <div class="keys"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></div>
+          <span class="verb">移动</span>
+          <div class="keys single"><kbd>E</kbd><kbd>Q</kbd></div>
+          <span class="verb">开火</span>
+        </div>
+        <div class="control-row system">
+          <span class="who sys">SYS</span>
+          <div class="keys single"><kbd>P</kbd><kbd>ESC</kbd></div>
+          <span class="verb">暂停</span>
+          <div class="keys single"><kbd>M</kbd><kbd>F</kbd></div>
+          <span class="verb">静音 / 全屏</span>
+        </div>
+        <p class="controls-note">标题画面可用 <kbd>↑</kbd><kbd>↓</kbd> 选择，<kbd>ENTER</kbd> 确定。双人模式需要共用一块键盘。</p>
+      </section>
+
+      <footer class="credits">
+        <p>原作 © 1980, 1985 NAMCO LTD. 本作是非商业同人复刻，仅供学习与怀旧。</p>
+        <p>引擎与反汇编数据参考 MIT 协议开源项目 <a href="https://github.com/vgrichina/battlecity" target="_blank" rel="noopener noreferrer">vgrichina/battlecity</a>。</p>
+      </footer>
+    </aside>
+  </main>
+
+  <script src="js/levels.js"></script>
+  <script src="js/sound.js"></script>
+  <script src="js/chr-data.js"></script>
+  <script src="js/game.js"></script>
+  <script src="js/shell.js"></script>
+</body>
+</html>
