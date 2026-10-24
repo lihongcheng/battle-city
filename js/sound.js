@@ -142,6 +142,8 @@ let masterGain = null;
 let recordDest = null;
 let soundEnabled = true;
 let audioInited = false;
+let audioPrimed = false;
+let audioResumeInFlight = false;
 
 // 4 APU channels: pulse1(0), pulse2(1), triangle(2), noise(3)
 const channels = [null, null, null, null];
@@ -178,17 +180,79 @@ function initWaves() {
   }
 }
 
-function initAudio() {
-  if (audioInited) return;
-  audioInited = true;
-
+function primeAudioSilent() {
+  if (!audioCtx || audioPrimed) return;
   try {
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  } catch (e) {
-    soundEnabled = false;
+    // A 1-sample silent buffer is the reliable "unlock" gesture for mobile
+    // Web Audio implementations (particularly iOS Safari and Android Chrome).
+    const buffer = audioCtx.createBuffer(1, 1, audioCtx.sampleRate);
+    const source = audioCtx.createBufferSource();
+    source.buffer = buffer;
+    source.connect(audioCtx.destination);
+    source.start(0);
+    audioPrimed = true;
+  } catch (e) {}
+}
+
+function onAudioRunning(restartMusic) {
+  primeAudioSilent();
+  // If a stage began before the browser let us unlock audio, restart the short
+  // stage BGM so the first audible moment is not a half-played sequence.
+  if (restartMusic && soundEnabled && audioInited &&
+      typeof gamePhase !== 'undefined' && gamePhase === 'play' &&
+      typeof gamePaused !== 'undefined' && !gamePaused &&
+      typeof demoMode !== 'undefined' && !demoMode) {
+    stopBGM();
+    startBGM();
+  }
+}
+
+function resumeAudio() {
+  if (!audioCtx) return;
+  primeAudioSilent();
+  if (audioCtx.state === 'running' || audioResumeInFlight) return;
+  const wasSuspended = audioCtx.state !== 'running';
+  let p;
+  try { p = audioCtx.resume(); } catch (e) { return; }
+  if (p && typeof p.then === 'function') {
+    audioResumeInFlight = true;
+    // Never get stuck if a browser leaves resume() pending until a later gesture.
+    const guard = setTimeout(() => { audioResumeInFlight = false; }, 1000);
+    p.then(() => {
+      clearTimeout(guard);
+      audioResumeInFlight = false;
+      onAudioRunning(wasSuspended);
+    }).catch(() => {
+      clearTimeout(guard);
+      audioResumeInFlight = false;
+    });
+  } else {
+    onAudioRunning(wasSuspended);
+  }
+}
+
+function initAudio() {
+  if (audioInited) {
+    resumeAudio();
     return;
   }
 
+  try {
+    // On iOS the ring/silent switch otherwise mutes Web Audio. Safari 17.4+
+    // exposes the Audio Session API; other browsers ignore this guard.
+    if (navigator.audioSession) {
+      try { navigator.audioSession.type = 'playback'; } catch (e) {}
+    }
+    const AudioCtor = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtor) throw new Error('Web Audio not supported');
+    audioCtx = new AudioCtor();
+  } catch (e) {
+    soundEnabled = false;
+    window.dispatchEvent(new CustomEvent('bc:mutechange', { detail: { muted: true, error: true } }));
+    return;
+  }
+
+  audioInited = true;
   initWaves();
 
   masterGain = audioCtx.createGain();
@@ -209,6 +273,8 @@ function initAudio() {
     };
     createChannelNodes(i);
   }
+
+  resumeAudio();
 }
 
 function createChannelNodes(chIdx) {
@@ -689,6 +755,21 @@ function sfxPause()        { playSound(SND.PAUSE); }  // ROM $8218
 function sfxStartEngine()  { playSound(SND.TANK_ENGINE); }
 function sfxStopEngine()   { stopSound(SND.TANK_ENGINE); }
 function sfxStopEagleAlarm() { stopSound(SND.EAGLE_ALARM); }
+
+// ─── Mobile audio unlock ───────────────────────────────────────
+// Chrome/Android and iOS only allow an AudioContext to start from a genuine
+// user gesture. Do this in the capture phase so the very first tap (on the
+// canvas, a virtual button, or a page control) unlocks sound before the game
+// loop tries to create its oscillators.
+function wakeAudioFromGesture() {
+  if (typeof gamePaused !== 'undefined' && gamePaused) return;
+  initAudio();
+}
+window.addEventListener('pointerdown', wakeAudioFromGesture, { capture: true, passive: true });
+window.addEventListener('keydown', wakeAudioFromGesture, { capture: true });
+if (!('PointerEvent' in window)) {
+  window.addEventListener('touchstart', wakeAudioFromGesture, { capture: true, passive: true });
+}
 
 // ─── Toggle sound ───────────────────────────────────────────────
 function toggleSound() {
