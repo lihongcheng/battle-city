@@ -25,6 +25,7 @@
   const placeholder   = $('#video-placeholder');
   const placeholderText = $('#video-placeholder-text');
   const videoPlay     = $('#video-play');
+  const videoRetry    = $('#video-retry');
   const dpad          = $('#dpad');
   const fireBtn       = $('#btn-fire');
   const pauseBtn      = $('#btn-pause');
@@ -105,6 +106,7 @@
       if (placeholderText) placeholderText.textContent = '已连接，等待主机开始…';
     }
     if (videoPlay) videoPlay.hidden = true;
+    if (videoRetry) videoRetry.hidden = true;
   }
 
   function dismissDisconnected(message) {
@@ -178,6 +180,7 @@
   function markVideoPlaying() {
     if (placeholder) placeholder.hidden = true;
     if (videoPlay) videoPlay.hidden = true;
+    if (videoRetry) videoRetry.hidden = true;
     if (linkState) linkState.textContent = '画面已同步';
   }
 
@@ -226,6 +229,7 @@
         if (placeholderText) placeholderText.textContent = '画面同步已停止';
       }
       if (videoPlay) videoPlay.hidden = true;
+      if (videoRetry) videoRetry.hidden = false;
       if (linkState) linkState.textContent = '画面中断';
     });
     call.on('error', () => {
@@ -234,6 +238,7 @@
         if (placeholderText) placeholderText.textContent = '画面同步失败';
       }
       if (videoPlay) videoPlay.hidden = true;
+      if (videoRetry) videoRetry.hidden = false;
       if (linkState) linkState.textContent = '画面同步失败';
     });
 
@@ -254,6 +259,16 @@
     if (connected && video.srcObject) showPlayPrompt();
   });
   video && video.addEventListener('click', attemptVideoPlay);
+  videoRetry && videoRetry.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (!connected || !conn || !conn.open) return;
+    try { conn.send({ t: 'video-request' }); } catch (err) {}
+    if (placeholderText) placeholderText.textContent = '已请求主机重新同步画面…';
+    if (videoRetry) videoRetry.hidden = true;
+    if (linkState) linkState.textContent = '请求同步中';
+    setTimeout(() => { if (!video || !video.srcObject) { if (videoRetry) videoRetry.hidden = false; } }, 4000);
+  });
+
   videoPlay && videoPlay.addEventListener('click', (e) => {
     e.stopPropagation();
     attemptVideoPlay();
@@ -276,6 +291,7 @@
     if (disconnect2) disconnect2.hidden = false;
     if (placeholder) { placeholder.hidden = false; if (placeholderText) placeholderText.textContent = '已连接，等待主机开始…'; }
     if (videoPlay) videoPlay.hidden = true;
+    if (videoRetry) videoRetry.hidden = true;
     if (linkState) linkState.textContent = '已连接 · 等待画面';
     setJoinStatus('已连接到主机', 'is-connected');
     clearTimeout(sendTimer);
@@ -319,7 +335,9 @@
           if (msg.paused) linkState && (linkState.textContent = '主机已暂停');
           else if (msg.phase === 'play') {
             if (!video || !video.srcObject) {
+              if (placeholder) placeholder.hidden = false;
               if (placeholderText) placeholderText.textContent = '主机已开始，正在同步画面…';
+              if (videoRetry) videoRetry.hidden = false;
               if (linkState) linkState.textContent = '正在同步画面';
             }
           }

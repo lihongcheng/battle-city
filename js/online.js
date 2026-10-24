@@ -48,6 +48,7 @@
   let lastRemoteAt = 0;
   let peerRetry = 0;
   let disposed = false;
+  let hostWakeLock = null;
 
   function showToast(message, isError = false) {
     if (!toastEl) return;
@@ -70,6 +71,11 @@
     if (startBtn) startBtn.disabled = !on;
   }
 
+  async function keepHostAwake() {
+    if (!('wakeLock' in navigator) || hostWakeLock) return;
+    try { hostWakeLock = await navigator.wakeLock.request('screen'); } catch (e) {}
+  }
+
   function setBadge(on) {
     if (!badge) return;
     badge.hidden = !on;
@@ -80,7 +86,7 @@
     if (codeEl) codeEl.textContent = code || '----';
     joinUrl = new URL('remote.html', window.location.href);
     joinUrl.searchParams.set('room', code);
-    joinUrl.searchParams.set('v', '20261024d');
+    joinUrl.searchParams.set('v', '20261024e');
     joinUrl = joinUrl.href;
     if (urlEl) urlEl.value = joinUrl;
     renderQR(joinUrl);
@@ -175,6 +181,11 @@
         api.setRemoteInput(msg);
       } else if (msg.t === 'action' && msg.action === 'pause') {
         if (started) api.togglePause();
+      } else if (msg.t === 'video-request') {
+        if (started) {
+          setStatus('正在重新同步画面…', 'is-waiting');
+          startVideoCall();
+        }
       }
     });
     c.on('close', () => {
@@ -328,6 +339,7 @@
     if (resync) resync.hidden = true;
     setRoomCode('');
     setStatus('联机已断开', '');
+    if (hostWakeLock) { try { hostWakeLock.release(); } catch (e) {} hostWakeLock = null; }
     if (showMessage) showToast('已断开手机联机');
   }
 
@@ -366,6 +378,7 @@
     if (window.matchMedia('(max-width: 1120px)').matches) {
       document.querySelector('.cabinet')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
+    keepHostAwake();
     showToast('联机对战开始 · P1 本机 / P2 副机');
   }
 
@@ -425,6 +438,10 @@
       safeClearInput();
     }
   }, 350);
+
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && started && connected) keepHostAwake();
+  });
 
   window.addEventListener('pagehide', () => { disposed = true; destroySession(false); });
 

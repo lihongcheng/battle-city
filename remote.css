@@ -285,6 +285,19 @@ button { -webkit-tap-highlight-color: transparent; }
   letter-spacing: .06em;
   background: #050504;
 }
+.video-retry {
+  margin-top: 5px;
+  padding: 7px 13px;
+  color: #cce4a4;
+  font-size: 10px;
+  background: #171d10;
+  border: 1px solid #4a5a33;
+  border-radius: 2px;
+  cursor: pointer;
+}
+.video-retry:hover { border-color: var(--p2); }
+.video-retry[hidden] { display: none !important; }
+
 .video-play {
   position: absolute;
   inset: 0;
