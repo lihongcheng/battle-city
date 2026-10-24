@@ -463,6 +463,29 @@ button { -webkit-tap-highlight-color: transparent; }
 .dpad-arr.rt { right: 9px; top: 50%; transform: translateY(-50%); }
 .dpad-arr.active { color: var(--p2); text-shadow: 0 0 8px rgba(185, 228, 118, .7); }
 
+
+
+.remote-sound {
+  min-width: 66px;
+  height: 28px;
+  padding: 0 9px;
+  color: #9cae7c;
+  font-family: var(--sans);
+  font-size: 9px;
+  background: #12160d;
+  border: 1px solid #3d4a2c;
+  border-radius: 3px;
+  cursor: pointer;
+}
+.remote-sound:hover:not(:disabled) { border-color: rgba(185, 228, 118, .65); color: var(--p2); }
+.remote-sound.on {
+  color: #101608;
+  background: linear-gradient(180deg, #c9ec8d, #9dcd5f);
+  border-color: #a8d478;
+}
+.remote-sound:disabled { opacity: .45; cursor: default; }
+#game-audio { display: none; }
+
 .pad-mid {
   display: flex;
   flex-direction: column;
@@ -576,8 +599,11 @@ button { -webkit-tap-highlight-color: transparent; }
   .dpad { width: 124px; height: 124px; }
   .dpad-hub { width: 31px; height: 31px; }
   .remote-fire { width: 82px; height: 82px; font-size: 10px; }
-  .pad-mid { min-width: 60px; gap: 5px; }
+  
+
+.pad-mid { min-width: 60px; gap: 5px; }
   .remote-pause { min-width: 58px; height: 29px; font-size: 8px; }
+  .remote-sound { min-width: 62px; height: 27px; font-size: 9px; }
 }
 
 /* Short landscape: video fills the height, controls in the side gutters. */
@@ -624,7 +650,9 @@ button { -webkit-tap-highlight-color: transparent; }
     width: 116px;
     height: 116px;
   }
-  .pad-mid {
+  
+
+.pad-mid {
     position: fixed;
     top: 12px;
     left: 18px;
@@ -634,6 +662,7 @@ button { -webkit-tap-highlight-color: transparent; }
   }
   .p2-tag { display: none; }
   .remote-pause { min-width: 58px; height: 28px; }
+  .remote-sound { min-width: 58px; height: 24px; font-size: 8px; }
   .link-state { color: #677054; text-align: left; }
   .remote-fire {
     position: fixed;
@@ -653,7 +682,9 @@ button { -webkit-tap-highlight-color: transparent; }
 @media (max-height: 360px) and (orientation: landscape) {
   .dpad { left: 12px; bottom: 12px; width: 102px; height: 102px; }
   .dpad-hub { width: 27px; height: 27px; }
-  .pad-mid { left: 12px; top: 8px; }
+  
+
+.pad-mid { left: 12px; top: 8px; }
   .remote-pause { height: 25px; font-size: 7px; }
   .remote-fire { right: 17px; bottom: 20px; width: 66px; height: 66px; font-size: 9px; }
   .remote-exit { top: 7px; right: 7px; }

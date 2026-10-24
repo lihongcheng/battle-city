@@ -22,6 +22,8 @@
   const disconnectBtn = $('#remote-disconnect');
   const disconnect2   = $('#remote-disconnect-2');
   const video         = $('#game-video');
+  const audioEl       = $('#game-audio');
+  const soundBtn      = $('#btn-sound');
   const placeholder   = $('#video-placeholder');
   const placeholderText = $('#video-placeholder-text');
   const videoPlay     = $('#video-play');
@@ -44,6 +46,8 @@
   let toastTimer = 0;
   let wakeLock = null;
   let dummyStream = null;
+  let audioEnabled = false;
+  let audioManuallyMuted = false;
 
   const input = { up: false, down: false, left: false, right: false, fire: false };
   let dpadPointerId = null;
@@ -95,6 +99,47 @@
     if (immediate) sendInput();
   }
 
+  function updateSoundBtn() {
+    if (!soundBtn) return;
+    const hasAudio = !!(audioEl && audioEl.srcObject);
+    soundBtn.disabled = !hasAudio;
+    soundBtn.classList.toggle('on', hasAudio && audioEnabled);
+    soundBtn.setAttribute('aria-pressed', hasAudio && audioEnabled ? 'true' : 'false');
+    soundBtn.textContent = !hasAudio ? '无音频' : (audioEnabled ? '声音 开' : '开启声音');
+  }
+
+  function stopAudio() {
+    audioEnabled = false;
+    if (audioEl) {
+      try { audioEl.pause(); } catch (e) {}
+      audioEl.srcObject = null;
+      audioEl.muted = true;
+    }
+    updateSoundBtn();
+  }
+
+  function tryPlayAudio(showPrompt = false) {
+    if (!audioEl || !audioEl.srcObject) return;
+    audioEl.muted = false;
+    let p;
+    try { p = audioEl.play(); } catch (e) { p = null; }
+    if (p && typeof p.then === 'function') {
+      p.then(() => {
+        audioEnabled = true;
+        updateSoundBtn();
+      }).catch(() => {
+        audioEnabled = false;
+        audioEl.muted = true;
+        updateSoundBtn();
+        if (showPrompt) showToast('点击「开启声音」播放游戏音效');
+      });
+    } else {
+      audioEnabled = !audioEl.paused;
+      updateSoundBtn();
+      if (!audioEnabled && showPrompt) showToast('点击「开启声音」播放游戏音效');
+    }
+  }
+
   function resetVideo() {
     if (mediaCall) { try { mediaCall.close(); } catch (e) {} mediaCall = null; }
     if (video) {
@@ -107,6 +152,7 @@
     }
     if (videoPlay) videoPlay.hidden = true;
     if (videoRetry) videoRetry.hidden = true;
+    stopAudio();
   }
 
   function dismissDisconnected(message) {
@@ -222,22 +268,41 @@
   function onIncomingCall(call) {
     if (mediaCall) { try { mediaCall.close(); } catch (e) {} }
     mediaCall = call;
+    stopAudio();
     setTimeout(reduceVideoLatency, 700);
     setTimeout(reduceVideoLatency, 1800);
 
     // Register stream handling BEFORE answering: some mobile WebRTC stacks can
     // deliver the remote stream immediately after answer().
     call.on('stream', (stream) => {
-      if (!video) return;
-      video.srcObject = stream;
-      video.muted = true;
-      if (placeholder) placeholder.hidden = true;
-      attemptVideoPlay();
-      // Some browsers only allow MediaStream playback after a tap; retry once
-      // the next frame has arrived as well.
-      setTimeout(attemptVideoPlay, 500);
+      if (mediaCall !== call) return;
+      const videoTracks = stream.getVideoTracks();
+      const audioTracks = stream.getAudioTracks();
+      if (video) {
+        video.srcObject = videoTracks.length ? new MediaStream(videoTracks) : null;
+        video.muted = true;
+        if (placeholder) placeholder.hidden = true;
+        attemptVideoPlay();
+        setTimeout(attemptVideoPlay, 500);
+      }
+      if (audioEl) {
+        if (audioTracks.length) {
+          audioEl.srcObject = new MediaStream(audioTracks);
+          audioEl.muted = false;
+          audioManuallyMuted = false;
+          updateSoundBtn();
+          // Try for autoplay; if the browser blocks it, the visible
+          // "开启声音" button performs the unlock on the next tap.
+          setTimeout(() => tryPlayAudio(true), 120);
+        } else {
+          audioEl.srcObject = null;
+          updateSoundBtn();
+        }
+      }
     });
     call.on('close', () => {
+      if (mediaCall !== call) return;
+      stopAudio();
       if (placeholder) {
         placeholder.hidden = false;
         if (placeholderText) placeholderText.textContent = '画面同步已停止';
@@ -247,6 +312,8 @@
       if (linkState) linkState.textContent = '画面中断';
     });
     call.on('error', () => {
+      if (mediaCall !== call) return;
+      stopAudio();
       if (placeholder) {
         placeholder.hidden = false;
         if (placeholderText) placeholderText.textContent = '画面同步失败';
@@ -306,6 +373,7 @@
     if (placeholder) { placeholder.hidden = false; if (placeholderText) placeholderText.textContent = '已连接，等待主机开始…'; }
     if (videoPlay) videoPlay.hidden = true;
     if (videoRetry) videoRetry.hidden = true;
+    stopAudio();
     if (linkState) linkState.textContent = '已连接 · 等待画面';
     setJoinStatus('已连接到主机', 'is-connected');
     clearTimeout(sendTimer);
@@ -501,6 +569,31 @@
     fireBtn.addEventListener('lostpointercapture', releaseFire);
   }
 
+  soundBtn && soundBtn.addEventListener('click', () => {
+    if (!audioEl || !audioEl.srcObject) return;
+    if (audioEnabled) {
+      audioEnabled = false;
+      audioManuallyMuted = true;
+      audioEl.muted = true;
+      updateSoundBtn();
+      return;
+    }
+    audioManuallyMuted = false;
+    tryPlayAudio(false);
+    setTimeout(() => {
+      if (!audioEnabled) showToast('无法开启声音，请检查浏览器音量与自动播放设置', true);
+    }, 600);
+  });
+
+  // Mobile autoplay often stays blocked until the first touch. Unmute on the
+  // first control interaction so the player does not have to hunt for the
+  // speaker button; an explicit mute disables this auto-unlock.
+  document.addEventListener('pointerdown', (e) => {
+    if (!audioEl || !audioEl.srcObject || audioEnabled || audioManuallyMuted) return;
+    if (e.target && e.target.closest && e.target.closest('#btn-sound')) return;
+    tryPlayAudio(false);
+  }, { capture: true, passive: true });
+
   if (pauseBtn) {
     pauseBtn.addEventListener('pointerdown', (e) => {
       e.preventDefault();
@@ -537,6 +630,8 @@
     if (conn) { try { conn.close(); } catch (e) {} }
     if (peer) { try { peer.destroy(); } catch (e) {} }
   });
+
+  updateSoundBtn();
 
   // Auto-join from the QR / shared invite link.
   const params = new URLSearchParams(location.search);

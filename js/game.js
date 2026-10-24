@@ -3372,6 +3372,12 @@ window.BCGame = Object.freeze({
     if (remoteP2Active && !gamePaused && gamePhase === 'play') remoteP2FireQueued = true;
   },
   isRemoteMode: () => remoteP2Active,
+  getGameAudioTrack: () => {
+    if (!audioInited) initAudio();
+    if (!recordDest || !recordDest.stream) return null;
+    const tracks = recordDest.stream.getAudioTracks();
+    return tracks.find(t => t.readyState === 'live') || tracks[0] || null;
+  },
   getState: () => ({
     ready: gameReady,
     phase: gamePhase,

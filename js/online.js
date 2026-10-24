@@ -86,7 +86,7 @@
     if (codeEl) codeEl.textContent = code || '----';
     joinUrl = new URL('remote.html', window.location.href);
     joinUrl.searchParams.set('room', code);
-    joinUrl.searchParams.set('v', '20261024f');
+    joinUrl.searchParams.set('v', '20261024g');
     joinUrl = joinUrl.href;
     if (urlEl) urlEl.value = joinUrl;
     renderQR(joinUrl);
@@ -138,7 +138,9 @@
       mediaCall = null;
     }
     if (videoStream) {
-      try { videoStream.getTracks().forEach(t => t.stop()); } catch (e) {}
+      // The audio track is the shared live game-audio destination; it must
+      // survive call restarts, so stop only the mirror video track here.
+      try { videoStream.getVideoTracks().forEach(t => t.stop()); } catch (e) {}
       videoStream = null;
     }
   }
@@ -256,6 +258,11 @@
       if (!videoStream) {
         setStatus('已连接 · 当前浏览器不支持画面同步，请看主机屏幕', 'is-error');
         return;
+      }
+      // Carry the actual NES APU mix to the second phone as well as video.
+      const audioTrack = typeof api.getGameAudioTrack === 'function' ? api.getGameAudioTrack() : null;
+      if (audioTrack) {
+        try { videoStream.addTrack(audioTrack); } catch (e) {}
       }
       const track = videoStream.getVideoTracks()[0];
       if (track && 'contentHint' in track) track.contentHint = 'motion';
