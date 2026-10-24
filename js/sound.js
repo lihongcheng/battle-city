@@ -259,9 +259,15 @@ function initAudio() {
   masterGain.gain.value = 0.15;  // NES-appropriate volume
   masterGain.connect(audioCtx.destination);
 
-  // Recording tap: parallel audio destination for MediaRecorder
-  recordDest = audioCtx.createMediaStreamDestination();
-  masterGain.connect(recordDest);
+  // Recording tap: parallel audio destination for MediaRecorder. Recording is
+  // not exposed in the page UI, so a browser without this node must still
+  // produce game audio instead of failing initialization.
+  try {
+    recordDest = audioCtx.createMediaStreamDestination();
+    masterGain.connect(recordDest);
+  } catch (e) {
+    recordDest = null;
+  }
 
   // Initialize 4 channels
   for (let i = 0; i < 4; i++) {
