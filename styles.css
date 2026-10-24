@@ -973,6 +973,16 @@ body.bc-paused .pause-overlay { opacity: 1; visibility: visible; }
 
 .vpad-mid { display: flex; flex-direction: column; align-items: center; gap: 8px; }
 .vpad-right { display: flex; align-items: center; }
+#dpad2, .vpad-right-p2, .pad-name { display: none; }
+.pad-name {
+  color: var(--yellow);
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .16em;
+  line-height: 1;
+}
+.pad-name-p2 { color: #a9d476; }
 
 .vbtn {
   touch-action: none;
@@ -1001,6 +1011,19 @@ body.bc-paused .pause-overlay { opacity: 1; visibility: visible; }
 .vbtn-fire.pressed {
   transform: translateY(4px);
   box-shadow: 0 2px 0 #6c5500, 0 6px 14px rgba(0, 0, 0, .55), inset 0 1px 0 rgba(255, 255, 255, .45);
+}
+.vbtn-fire-p2 {
+  color: #0a1206;
+  background: linear-gradient(180deg, #b9e476, #86b750);
+  box-shadow:
+    0 6px 0 #3e5d20,
+    0 12px 24px rgba(0, 0, 0, .55),
+    inset 0 1px 0 rgba(255, 255, 255, .45);
+}
+.vbtn-fire-p2:active,
+.vbtn-fire-p2.pressed {
+  transform: translateY(4px);
+  box-shadow: 0 2px 0 #3e5d20, 0 6px 14px rgba(0, 0, 0, .55), inset 0 1px 0 rgba(255, 255, 255, .4);
 }
 .vbtn-start {
   min-width: 68px;
@@ -1056,6 +1079,49 @@ body.bc-paused .pause-overlay { opacity: 1; visibility: visible; }
 @media (hover: none) {
   .vpad { display: flex; }
   #ui-fullscreen { display: none; }
+}
+
+/* Local 2P on one phone: P1 left, P2 right, pause/start in the middle. */
+@media (max-width: 900px), (hover: none) {
+  body.bc-two-player .vpad {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    grid-template-areas:
+      "n1 mid n2"
+      "p1 mid p2"
+      "f1 mid f2";
+    align-items: center;
+    justify-items: center;
+    gap: 7px 8px;
+    padding: 12px 4px 4px;
+  }
+  body.bc-two-player .pad-name { display: block; }
+  body.bc-two-player .pad-name-p1 { grid-area: n1; }
+  body.bc-two-player .pad-name-p2 { grid-area: n2; }
+  body.bc-two-player #dpad {
+    grid-area: p1;
+    width: 112px;
+    height: 112px;
+  }
+  body.bc-two-player #dpad2 {
+    display: block;
+    grid-area: p2;
+    width: 112px;
+    height: 112px;
+  }
+  body.bc-two-player .vpad-right-p1 { grid-area: f1; }
+  body.bc-two-player .vpad-right-p2 { display: flex; grid-area: f2; }
+  body.bc-two-player .vpad-mid {
+    grid-area: mid;
+    grid-row: 1 / span 3;
+    align-self: center;
+    justify-self: center;
+  }
+  body.bc-two-player .dpad-hub { width: 28px; height: 28px; }
+  body.bc-two-player .dpad-arr { font-size: 12px; }
+  body.bc-two-player .vbtn-fire { width: 62px; height: 62px; font-size: 9px; }
+  body.bc-two-player .vbtn-start { min-width: 54px; height: 28px; font-size: 7px; }
+  body.bc-two-player .vbtn-b { min-width: 46px; }
 }
 
 @media (max-width: 760px) {
@@ -1114,6 +1180,11 @@ body.bc-paused .pause-overlay { opacity: 1; visibility: visible; }
   .vbtn-fire { width: 72px; height: 72px; }
   .vbtn-start { min-width: 56px; font-size: 7px; }
   .stepper button { width: 27px; }
+  body.bc-two-player #dpad,
+  body.bc-two-player #dpad2 { width: 96px; height: 96px; }
+  body.bc-two-player .dpad-hub { width: 24px; height: 24px; }
+  body.bc-two-player .vbtn-fire { width: 54px; height: 54px; font-size: 8px; }
+  body.bc-two-player .vbtn-start { min-width: 48px; height: 26px; font-size: 6.5px; }
 }
 
 /* Short landscape phones: game becomes a full-viewport arcade display. */
@@ -1173,6 +1244,51 @@ body.bc-paused .pause-overlay { opacity: 1; visibility: visible; }
   .vpad-right { position: fixed; right: 22px; bottom: 25px; }
   .vbtn-fire { width: 70px; height: 70px; }
   .vbtn-start { min-width: 62px; height: 28px; }
+
+  /* 2P landscape: one control column in each black side bar. */
+  body.bc-two-player .vpad { display: block; }
+  body.bc-two-player .pad-name { display: block; position: fixed; z-index: 31; }
+  body.bc-two-player .pad-name-p1 { left: 14px; top: 48px; }
+  body.bc-two-player .pad-name-p2 { right: 14px; top: 14px; }
+  body.bc-two-player #dpad {
+    left: 14px;
+    right: auto;
+    bottom: 14px;
+    width: 96px;
+    height: 96px;
+  }
+  body.bc-two-player #dpad2 {
+    display: block;
+    position: fixed;
+    right: 14px;
+    left: auto;
+    bottom: 14px;
+    width: 96px;
+    height: 96px;
+  }
+  body.bc-two-player .vpad-right-p1 {
+    display: flex;
+    position: fixed;
+    left: 14px;
+    right: auto;
+    bottom: 122px;
+  }
+  body.bc-two-player .vpad-right-p2 {
+    display: flex;
+    position: fixed;
+    right: 14px;
+    left: auto;
+    bottom: 122px;
+  }
+  body.bc-two-player .vbtn-fire { width: 54px; height: 54px; font-size: 8px; }
+  body.bc-two-player .vpad-mid {
+    left: 14px;
+    right: auto;
+    top: 10px;
+    bottom: auto;
+    transform: none;
+  }
+  body.bc-two-player .vbtn-start { min-width: 54px; height: 26px; font-size: 7px; }
 }
 
 @media (max-height: 360px) and (orientation: landscape) and (hover: none) {
@@ -1181,6 +1297,17 @@ body.bc-paused .pause-overlay { opacity: 1; visibility: visible; }
   .vpad-right { right: 16px; bottom: 16px; }
   .vbtn-fire { width: 60px; height: 60px; font-size: 9px; }
   .vbtn-start { min-width: 58px; height: 26px; font-size: 7px; }
+
+  body.bc-two-player #dpad,
+  body.bc-two-player #dpad2 { width: 84px; height: 84px; bottom: 10px; }
+  body.bc-two-player #dpad { left: 10px; right: auto; }
+  body.bc-two-player #dpad2 { right: 10px; left: auto; }
+  body.bc-two-player .vpad-right-p1 { left: 10px; right: auto; bottom: 104px; }
+  body.bc-two-player .vpad-right-p2 { right: 10px; left: auto; bottom: 104px; }
+  body.bc-two-player .vbtn-fire { width: 48px; height: 48px; font-size: 7px; }
+  body.bc-two-player .vpad-mid { left: 10px; right: auto; top: 8px; }
+  body.bc-two-player .pad-name-p1 { left: 10px; top: 40px; }
+  body.bc-two-player .pad-name-p2 { right: 10px; top: 12px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

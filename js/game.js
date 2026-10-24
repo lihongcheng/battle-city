@@ -421,6 +421,9 @@ let titleFrame;     // frame counter for title screen blink animation
 let titleTimer = 0; // ROM $0A counts to 8 before Demo Mode
 let titleCursor = 0; // menu cursor: 0=1P, 1=2P, 2=CONSTRUCTION
 let titleDownHeld = false, titleUpHeld = false, titleFireHeld = false;
+let titleNavHold = 0;
+let selectHoldFrames = 0;
+let selectStartHeld = false;
 let demoMode = false; // ROM $6D DemoActive
 let selectKeyHeld = false; // edge-detect for stage selection
 let credits = 0;    // VS System only ($0104 credits); unused in Famicom version
@@ -743,73 +746,86 @@ canvas.addEventListener('pointerdown', e => {
 // ─── Touch / Virtual Gamepad ──────────────────────────────────────────────────
 (function setupTouch() {
   const dpad     = document.getElementById('dpad');
+  const dpad2    = document.getElementById('dpad2');
   const btnFire  = document.getElementById('btn-fire');
+  const btnFire2 = document.getElementById('btn-fire2');
   const btnStart = document.getElementById('btn-start');
   if (!dpad) return;
-
-  const DPAD_KEYS = ['ArrowUp', 'ArrowLeft', 'ArrowDown', 'ArrowRight'];
-  const arrEls = { ArrowUp: dpad.querySelector('.up'), ArrowDown: dpad.querySelector('.dn'),
-                   ArrowLeft: dpad.querySelector('.lt'), ArrowRight: dpad.querySelector('.rt') };
-  let dpadPointerId = null;
-  let dpadReleaseTimer = 0;
-
-  function clearDpad() {
-    DPAD_KEYS.forEach(k => { keys[k] = false; });
-    Object.values(arrEls).forEach(el => el && el.classList.remove('active'));
-  }
 
   function isMenuPhase() {
     return gamePhase === 'title' || gamePhase === 'select' ||
            gamePhase === 'gameover' || gamePhase === 'victory';
   }
 
-  function releaseDpadSoon() {
-    clearTimeout(dpadReleaseTimer);
-    // Menu screens sample input on a slower cadence; gameplay runs at 60 Hz.
-    // Either way a quick tap must survive at least a few frames.
-    dpadReleaseTimer = setTimeout(clearDpad, isMenuPhase() ? 160 : 50);
+  function bindDpad(el, mapping) {
+    if (!el) return;
+    const dirKeys = [mapping.up, mapping.left, mapping.down, mapping.right];
+    const arrEls = {
+      [mapping.up]: el.querySelector('.up'), [mapping.down]: el.querySelector('.dn'),
+      [mapping.left]: el.querySelector('.lt'), [mapping.right]: el.querySelector('.rt')
+    };
+    let pointerId = null;
+    let releaseTimer = 0;
+
+    function clearDpad() {
+      dirKeys.forEach(k => { keys[k] = false; });
+      Object.values(arrEls).forEach(node => node && node.classList.remove('active'));
+    }
+
+    function releaseDpadSoon() {
+      clearTimeout(releaseTimer);
+      // Menu screens sample input on a slower cadence; gameplay runs at 60 Hz.
+      // Either way a quick tap must survive at least a few frames.
+      releaseTimer = setTimeout(clearDpad, isMenuPhase() ? 160 : 50);
+    }
+
+    function applyDir(clientX, clientY) {
+      const r = el.getBoundingClientRect();
+      const dx = clientX - (r.left + r.width / 2);
+      const dy = clientY - (r.top + r.height / 2);
+      clearDpad();
+      if (Math.hypot(dx, dy) < r.width * 0.12) return;
+      const a = Math.atan2(dy, dx) * 180 / Math.PI;
+      let dir;
+      if      (a >= -135 && a < -45)  dir = 'up';
+      else if (a >=  -45 && a <  45)  dir = 'right';
+      else if (a >=   45 && a < 135)  dir = 'down';
+      else                            dir = 'left';
+      const k = mapping[dir];
+      keys[k] = true;
+      if (arrEls[k]) arrEls[k].classList.add('active');
+    }
+
+    el.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      if (pointerId !== null) return;
+      pointerId = e.pointerId;
+      try { el.setPointerCapture(e.pointerId); } catch (err) {}
+      clearTimeout(releaseTimer);
+      applyDir(e.clientX, e.clientY);
+    });
+
+    el.addEventListener('pointermove', e => {
+      if (e.pointerId !== pointerId) return;
+      e.preventDefault();
+      clearTimeout(releaseTimer);
+      applyDir(e.clientX, e.clientY);
+    });
+
+    function endDpad(e) {
+      if (pointerId !== null && e.pointerId !== pointerId) return;
+      pointerId = null;
+      releaseDpadSoon();
+    }
+    el.addEventListener('pointerup', endDpad);
+    el.addEventListener('pointercancel', endDpad);
+    el.addEventListener('lostpointercapture', endDpad);
   }
 
-  function applyDir(clientX, clientY) {
-    const r  = dpad.getBoundingClientRect();
-    const dx = clientX - (r.left + r.width  / 2);
-    const dy = clientY - (r.top  + r.height / 2);
-    clearDpad();
-    if (Math.hypot(dx, dy) < r.width * 0.12) return;
-    const a = Math.atan2(dy, dx) * 180 / Math.PI;
-    let k;
-    if      (a >= -135 && a < -45)  k = 'ArrowUp';
-    else if (a >=  -45 && a <  45)  k = 'ArrowRight';
-    else if (a >=   45 && a < 135)  k = 'ArrowDown';
-    else                             k = 'ArrowLeft';
-    keys[k] = true;
-    if (arrEls[k]) arrEls[k].classList.add('active');
-  }
-
-  dpad.addEventListener('pointerdown', e => {
-    e.preventDefault();
-    if (dpadPointerId !== null) return;
-    dpadPointerId = e.pointerId;
-    try { dpad.setPointerCapture(e.pointerId); } catch (err) {}
-    clearTimeout(dpadReleaseTimer);
-    applyDir(e.clientX, e.clientY);
-  });
-
-  dpad.addEventListener('pointermove', e => {
-    if (e.pointerId !== dpadPointerId) return;
-    e.preventDefault();
-    clearTimeout(dpadReleaseTimer);
-    applyDir(e.clientX, e.clientY);
-  });
-
-  function endDpad(e) {
-    if (dpadPointerId !== null && e.pointerId !== dpadPointerId) return;
-    dpadPointerId = null;
-    releaseDpadSoon();
-  }
-  dpad.addEventListener('pointerup', endDpad);
-  dpad.addEventListener('pointercancel', endDpad);
-  dpad.addEventListener('lostpointercapture', endDpad);
+  // P1 uses the arrows; P2 uses WASD. These are the exact keys the game
+  // already reads for a second player on a shared keyboard.
+  bindDpad(dpad,  { up: 'ArrowUp', left: 'ArrowLeft', down: 'ArrowDown', right: 'ArrowRight' });
+  bindDpad(dpad2, { up: 'KeyW',    left: 'KeyA',      down: 'KeyS',     right: 'KeyD' });
 
   const releaseTimers = new Map();
 
@@ -840,6 +856,7 @@ canvas.addEventListener('pointerdown', e => {
   }
 
   bindBtn(btnFire,  'Space');
+  bindBtn(btnFire2, 'KeyE');
   bindBtn(btnStart, 'Enter');
 
   // On a phone the centre button doubles as pause while a stage is running.
@@ -943,9 +960,16 @@ let _lastMobilePhase = null;
 
 function updateMobileLabels() {
   const btnFire  = document.getElementById('btn-fire');
+  const btnFire2 = document.getElementById('btn-fire2');
   const btnStart = document.getElementById('btn-start');
   const btnB     = document.getElementById('btn-b');
   if (!btnFire) return;
+
+  // Layout switch for local two-player touch: P1 on the left, P2 on the right.
+  const dualTouch = numPlayers === 2 &&
+    gamePhase !== 'title' && gamePhase !== 'select' && gamePhase !== 'edit';
+  document.body.classList.toggle('bc-two-player', dualTouch);
+  if (btnFire2) btnFire2.textContent = '开火';
 
   const ctxStage = document.getElementById('ctx-stage');
   const ctxTile  = document.getElementById('ctx-tile');
@@ -1830,14 +1854,37 @@ function update() {
     // Reset demo timer on any input
     if (keys['ArrowUp'] || keys['ArrowDown'] || keys['Space'] || keys['Enter']) titleTimer = 0;
 
-    // D-pad up/down (SELECT in ROM cycles $83: 0→1→2→0) — throttle to once per 8 frames
-    if (titleFrame % 8 === 1) {
-      if (keys['ArrowUp'])   titleCursor = (titleCursor + 2) % 3; // up = prev item
-      if (keys['ArrowDown']) titleCursor = (titleCursor + 1) % 3; // down = next item
+    // D-pad up/down (SELECT in ROM cycles $83: 0→1→2→0). Move on the initial
+    // key-down, then repeat only after a deliberate long hold. This matters on
+    // touch screens where a tap is held for a few frames to beat input polling.
+    const navUp = !!keys['ArrowUp'];
+    const navDown = !!keys['ArrowDown'];
+    if (navDown && !titleDownHeld) {
+      titleCursor = (titleCursor + 1) % 3;
+      titleDownHeld = true;
+      titleUpHeld = false;
+      titleNavHold = 0;
+    } else if (navUp && !titleUpHeld) {
+      titleCursor = (titleCursor + 2) % 3;
+      titleUpHeld = true;
+      titleDownHeld = false;
+      titleNavHold = 0;
+    } else if (navUp || navDown) {
+      titleNavHold++;
+      if (titleNavHold > 20 && titleNavHold % 6 === 0) {
+        titleCursor = navDown ? (titleCursor + 1) % 3 : (titleCursor + 2) % 3;
+      }
+    } else {
+      titleDownHeld = false;
+      titleUpHeld = false;
+      titleNavHold = 0;
     }
 
-    // START: dispatch based on cursor (ROM $CA69 SelectDispatchTable)
-    if (keys['Space'] || keys['Enter']) {
+    // START: dispatch based on cursor (ROM $CA69 SelectDispatchTable).
+    // Edge-detect so a held Enter from a previous screen cannot immediately
+    // launch another game when the title reappears.
+    const titleStartDown = !!(keys['Space'] || keys['Enter']);
+    if (titleStartDown && !titleFireHeld) {
       initAudio();
       if (titleCursor === 2) { // CONSTRUCTION
         initLevel(0);
@@ -1868,6 +1915,7 @@ function update() {
       p2Score = 0; p2Lives = 2;
       initLevel(34); // Stage 35
     }
+    titleFireHeld = titleStartDown;
     return;
   }
 
@@ -1949,7 +1997,10 @@ function update() {
     // ROM $CC90 CurtainClose / $CCB2 InitNametableFromRAM: 1 row per WaitVBlank (1 row/frame)
     if (curtainTarget === 'select') {
       curtainRow++;
-      if (curtainRow === 15) { gamePhase = 'select'; }
+      if (curtainRow === 15) {
+        gamePhase = 'select';
+        selectStartHeld = !!(keys['Space'] || keys['Enter']);
+      }
     } else {
       curtainRow--;
       if (curtainRow === -1) {
@@ -1964,20 +2015,28 @@ function update() {
   if (gamePhase === 'select') {
     const selUp   = !!(keys['ArrowUp']   || keys['KeyW']);
     const selDown = !!(keys['ArrowDown'] || keys['KeyS']);
-    // Edge trigger on first press, then auto-repeat every 8 frames (matches ROM $C18B/$C1B2 timing)
-    if (selUp && (!selectKeyHeld || frameCount % 8 === 0))
-      selectedStage = (selectedStage + 1) % 35;
-    if (selDown && (!selectKeyHeld || frameCount % 8 === 0))
-      selectedStage = (selectedStage + 34) % 35;
-    selectKeyHeld = selUp || selDown;
+    if (!selUp && !selDown) {
+      selectKeyHeld = false;
+      selectHoldFrames = 0;
+    } else if (!selectKeyHeld) {
+      selectedStage = selDown ? (selectedStage + 34) % 35 : (selectedStage + 1) % 35;
+      selectKeyHeld = true;
+      selectHoldFrames = 0;
+    } else {
+      selectHoldFrames++;
+      if (selectHoldFrames > 20 && selectHoldFrames % 6 === 0)
+        selectedStage = selDown ? (selectedStage + 34) % 35 : (selectedStage + 1) % 35;
+    }
 
-    if (keys['Space'] || keys['Enter']) {
+    const selectStartDown = !!(keys['Space'] || keys['Enter']);
+    if (selectStartDown && !selectStartHeld) {
       initLevel(selectedStage);
       setBGPaletteSet(0); // ROM $C1F1: STA $4D=#$00 after InitNametableFromRAM, switches to in-game palette
       gamePhase = 'curtain';
       curtainTarget = 'play';
       curtainRow = 14;
     }
+    selectStartHeld = selectStartDown;
     return;
   }
 
@@ -3093,6 +3152,14 @@ function enterTitle() {
   titleTimer  = 0;
   demoMode    = false;
   selectKeyHeld = false;
+  selectStartHeld = false;
+  selectHoldFrames = 0;
+  titleNavHold = 0;
+  titleUpHeld = false;
+  titleDownHeld = false;
+  // If Enter/Space is still down when we return (e.g. from GAME OVER), require
+  // a fresh press before another game can start.
+  titleFireHeld = !!(keys['Space'] || keys['Enter']);
   curtainRow  = -1;
 }
 
