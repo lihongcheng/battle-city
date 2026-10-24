@@ -2,6 +2,8 @@
 
 1985 年 Famicom《Battle City》的像素级网页复刻。无构建步骤、无外部依赖，双击 `index.html` 即可游玩。
 
+**在线试玩：** <https://lihongcheng.github.io/battle-city/>
+
 ![标题画面](screenshot-title.png)
 
 ## 运行
